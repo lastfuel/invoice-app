@@ -1,0 +1,288 @@
+import React, { useState, useMemo } from 'react';
+import { Download, FileText, Calendar, DollarSign, Package } from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
+const InvoiceGenerator = ({ customerName, transactions }) => {
+  const [invoiceNumber] = useState(() => `INV-${Date.now()}`);
+  const [invoiceDate] = useState(() => new Date().toLocaleDateString());
+
+  // Calculate totals and summary
+  const invoiceSummary = useMemo(() => {
+    if (!transactions || transactions.length === 0) return null;
+
+    // Only use the "Charge Total" column
+    const firstRow = transactions[0];
+    const amountColumns = Object.keys(firstRow).filter(key =>
+      key.toLowerCase() === 'charge total'
+    );
+
+    let totalAmount = 0;
+    const processedTransactions = transactions.map(transaction => {
+      let transactionTotal = 0;
+      
+      // Sum all amount columns for this transaction
+      amountColumns.forEach(col => {
+        const value = parseFloat(transaction[col]) || 0;
+        transactionTotal += value;
+      });
+
+      totalAmount += transactionTotal;
+      
+      return {
+        ...transaction,
+        calculatedTotal: transactionTotal
+      };
+    });
+
+    return {
+      totalAmount,
+      transactionCount: transactions.length,
+      amountColumns,
+      processedTransactions
+    };
+  }, [transactions]);
+
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    
+    // ShippingSorted brand colors (RGB values for jsPDF)
+    const brightGreen = [191, 255, 0]; // #BFFF00
+    
+    // Background (simulate dark theme with white background for PDF readability)
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, 210, 297, 'F');
+    
+    // Header with ShippingSorted branding
+    doc.setFontSize(24);
+    doc.setTextColor(...brightGreen);
+    doc.setFont('helvetica', 'bold');
+    doc.text('SHIPPINGSORTED', 20, 25);
+    
+    doc.setFontSize(18);
+    doc.setTextColor(80, 80, 80);
+    doc.text('SHIPPING INVOICE', 20, 40);
+    
+    // Add a bright green line under header
+    doc.setDrawColor(...brightGreen);
+    doc.setLineWidth(2);
+    doc.line(20, 45, 190, 45);
+    
+    // Invoice details section with better spacing
+    doc.setFontSize(11);
+    doc.setTextColor(60, 60, 60);
+    doc.setFont('helvetica', 'normal');
+    
+    // Left column
+    doc.setFont('helvetica', 'bold');
+    doc.text('Invoice #:', 20, 60);
+    doc.setFont('helvetica', 'normal');
+    doc.text(invoiceNumber, 50, 60);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text('Date:', 20, 70);
+    doc.setFont('helvetica', 'normal');
+    doc.text(invoiceDate, 50, 70);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text('Customer:', 20, 80);
+    doc.setFont('helvetica', 'normal');
+    doc.text(customerName, 50, 80);
+    
+    // Right column - Summary box
+    doc.setFillColor(248, 250, 252); // Light gray background
+    doc.setDrawColor(...brightGreen);
+    doc.rect(120, 55, 70, 30, 'FD');
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...brightGreen);
+    doc.text('SUMMARY', 125, 65);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 60, 60);
+    doc.text(`Transactions: ${invoiceSummary.transactionCount}`, 125, 75);
+    doc.text(`Total: $${invoiceSummary.totalAmount.toFixed(2)}`, 125, 82);
+    
+    // Table section
+    const columns = ['Customer #', 'Invoice #', 'Line of Business', 'Airbill #', 'Ship date', 'Charge Total'];
+    
+    const tableData = invoiceSummary.processedTransactions.map(transaction => [
+      transaction['Customer #'] || '',
+      transaction['Invoice #'] || '',
+      transaction['Line of Business'] || '',
+      transaction['Airbill #'] || '',
+      transaction['Ship date'] || '',
+      `$${transaction.calculatedTotal.toFixed(2)}`
+    ]);
+    
+    doc.autoTable({
+      head: [columns],
+      body: tableData,
+      startY: 100,
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+        textColor: [40, 40, 40],
+      },
+      headStyles: {
+        fillColor: brightGreen,
+        textColor: [26, 26, 26], // Dark text on bright green
+        fontStyle: 'bold',
+        fontSize: 10,
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252],
+      },
+      columnStyles: {
+        5: { halign: 'right', fontStyle: 'bold' } // Right align the total column
+      },
+      margin: { left: 20, right: 20 },
+    });
+    
+    // Total section with bright green highlight
+    const finalY = doc.lastAutoTable.finalY + 15;
+    
+    // Total due box
+    doc.setFillColor(...brightGreen);
+    doc.setDrawColor(...brightGreen);
+    doc.rect(120, finalY, 70, 15, 'FD');
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(26, 26, 26); // Dark text on bright green
+    doc.text(`TOTAL DUE: $${invoiceSummary.totalAmount.toFixed(2)}`, 125, finalY + 10);
+    
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(120, 120, 120);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Generated by ShippingSorted Invoice System', 20, finalY + 40);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 20, finalY + 47);
+    
+    // Save PDF with better filename
+    const cleanCustomerName = customerName.replace(/[^a-zA-Z0-9]/g, '-');
+    const dateStr = new Date().toISOString().split('T')[0];
+    doc.save(`ShippingSorted-Invoice-${cleanCustomerName}-${dateStr}.pdf`);
+  };
+
+  if (!transactions || transactions.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="bg-dark-card rounded-lg p-6 border border-green-bright/20 hover-lift">
+      <h3 className="text-lg font-semibold mb-4 flex items-center gradient-text">
+        <FileText className="w-5 h-5 mr-2" />
+        Invoice Preview
+      </h3>
+
+      {/* Invoice Header */}
+      <div className="bg-dark-bg rounded-lg p-4 mb-6 border border-green-bright/20">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <div className="flex items-center mb-2">
+              <Package className="w-4 h-4 mr-2 text-green-bright" />
+              <span className="font-semibold text-green-bright">SHIPPING INVOICE</span>
+            </div>
+            <p className="text-sm text-white">Invoice #: {invoiceNumber}</p>
+          </div>
+          <div>
+            <div className="flex items-center mb-2">
+              <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
+              <span className="font-medium">Date</span>
+            </div>
+            <p className="text-sm text-white">{invoiceDate}</p>
+          </div>
+          <div>
+            <div className="flex items-center mb-2">
+              <DollarSign className="w-4 h-4 mr-2 text-muted-foreground" />
+              <span className="font-medium">Customer</span>
+            </div>
+            <p className="text-sm text-white">{customerName}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="bg-dark-bg rounded-lg p-4 border border-green-bright/20 hover-lift">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Total Transactions</p>
+              <p className="text-2xl font-bold text-white">{invoiceSummary.transactionCount}</p>
+            </div>
+            <div className="bg-green-bright/20 p-3 rounded-lg">
+              <Package className="w-6 h-6 text-green-bright" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-dark-bg rounded-lg p-4 border border-green-bright/20 hover-lift">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Total Amount</p>
+              <p className="text-2xl font-bold text-green-bright">${invoiceSummary.totalAmount.toFixed(2)}</p>
+            </div>
+            <div className="bg-green-bright/20 p-3 rounded-lg">
+              <DollarSign className="w-6 h-6 text-green-bright" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Transaction Table */}
+      <div className="bg-dark-bg rounded-lg p-4 mb-6 border border-green-bright/20">
+        <h4 className="font-medium mb-4 text-green-bright">Transaction Details</h4>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-green-bright/20">
+                {Object.keys(transactions[0]).slice(0, 5).map((column, index) => (
+                  <th key={index} className="text-left py-2 px-3 text-green-bright font-medium">
+                    {column}
+                  </th>
+                ))}
+                {invoiceSummary.amountColumns.length > 0 && (
+                  <th className="text-right py-2 px-3 text-green-bright font-medium">Total</th>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {invoiceSummary.processedTransactions.slice(0, 10).map((transaction, index) => (
+                <tr key={index} className="border-b border-green-bright/10 hover:bg-green-bright/5 transition-colors">
+                  {Object.keys(transactions[0]).slice(0, 5).map((column, colIndex) => (
+                    <td key={colIndex} className="py-2 px-3 text-white">
+                      {transaction[column] || '-'}
+                    </td>
+                  ))}
+                  {invoiceSummary.amountColumns.length > 0 && (
+                    <td className="py-2 px-3 text-right text-green-bright font-medium">
+                      ${transaction.calculatedTotal.toFixed(2)}
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {transactions.length > 10 && (
+            <p className="text-center text-muted-foreground mt-4 text-sm">
+              ... and {transactions.length - 10} more transactions
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Generate Invoice Button */}
+      <div className="flex justify-center">
+        <button
+          onClick={generatePDF}
+          className="bg-green-bright hover:bg-green-dim text-dark-bg px-6 py-3 rounded-lg flex items-center space-x-2 transition-all duration-300 hover-lift font-medium shadow-lg hover:shadow-green-bright/25"
+        >
+          <Download className="w-5 h-5" />
+          <span>Download Invoice PDF</span>
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default InvoiceGenerator; 
