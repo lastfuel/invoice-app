@@ -6,8 +6,35 @@ import ProtectedRoute from './components/ProtectedRoute';
 import UserManagement from './components/UserManagement';
 import PasswordSetup from './components/PasswordSetup';
 import PasswordChange from './components/PasswordChange';
+import Login from './components/Login';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Package, Bell, User, LogOut, Users } from 'lucide-react';
+
+// CRITICAL: AUTHENTICATION WALL - NO BYPASS ALLOWED
+const AuthenticationWall = ({ children }) => {
+  const { user, loading } = useAuth();
+  
+  console.log('🚨 AUTHENTICATION WALL:', { 
+    user: user ? { uid: user.uid, email: user.email } : null, 
+    loading,
+    hasValidUser: !!(user && user.uid && user.email)
+  });
+
+  // ALWAYS show login while loading
+  if (loading) {
+    console.log('🚨 LOADING - SHOWING LOGIN TO PREVENT BYPASS');
+    return <Login />;
+  }
+
+  // CRITICAL: NO USER = NO ACCESS (EVER)
+  if (!user || !user.uid || !user.email) {
+    console.log('🚨 BLOCKING ACCESS - NO VALID USER DETECTED');
+    return <Login />;
+  }
+
+  console.log('✅ AUTHENTICATED USER CONFIRMED - ALLOWING ACCESS');
+  return children;
+};
 
 // CRITICAL: Add immediate check for environment variables
 const hasRequiredEnvVars = () => {
@@ -43,14 +70,7 @@ const AppContent = () => {
   if (!user || !user.uid || !user.email) {
     console.error('🚨 SECURITY BREACH ATTEMPT: No valid user detected in AppContent');
     console.error('🚨 Redirecting to login...');
-    return (
-      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl text-white mb-4">Authentication Required</h2>
-          <p className="text-muted-foreground">Please log in to access this application.</p>
-        </div>
-      </div>
-    );
+    return <Login />;
   }
 
   const handleLogout = () => {
@@ -223,9 +243,9 @@ function App() {
 
   return (
     <AuthProvider>
-      <ProtectedRoute>
+      <AuthenticationWall>
         <AppContent />
-      </ProtectedRoute>
+      </AuthenticationWall>
     </AuthProvider>
   );
 }
