@@ -9,6 +9,25 @@ import PasswordChange from './components/PasswordChange';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Package, Bell, User, LogOut, Users } from 'lucide-react';
 
+// CRITICAL: Add immediate check for environment variables
+const hasRequiredEnvVars = () => {
+  const required = [
+    'REACT_APP_FIREBASE_API_KEY',
+    'REACT_APP_FIREBASE_AUTH_DOMAIN', 
+    'REACT_APP_FIREBASE_PROJECT_ID'
+  ];
+  
+  const missing = required.filter(key => !process.env[key]);
+  
+  if (missing.length > 0) {
+    console.error('🚨 CRITICAL SECURITY: Missing environment variables:', missing);
+    console.error('🚨 Authentication will fail. BLOCKING ACCESS.');
+    return false;
+  }
+  
+  return true;
+};
+
 // Separate component for the main app content to use auth hooks
 const AppContent = () => {
   const [uploadedData, setUploadedData] = useState(null);
@@ -17,6 +36,23 @@ const AppContent = () => {
   const [activeTab, setActiveTab] = useState('invoice');
   const { user, logout } = useAuth();
 
+  // Debug: Log user object
+  console.log('👤 Current user in AppContent:', user);
+
+  // CRITICAL: Additional security check - never render without valid user
+  if (!user || !user.uid || !user.email) {
+    console.error('🚨 SECURITY BREACH ATTEMPT: No valid user detected in AppContent');
+    console.error('🚨 Redirecting to login...');
+    return (
+      <div className="min-h-screen bg-dark-bg flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl text-white mb-4">Authentication Required</h2>
+          <p className="text-muted-foreground">Please log in to access this application.</p>
+        </div>
+      </div>
+    );
+  }
+
   const handleLogout = () => {
     console.log('🚪 Logout button clicked');
     if (window.confirm('Are you sure you want to logout?')) {
@@ -24,9 +60,6 @@ const AppContent = () => {
       logout();
     }
   };
-
-  // Debug: Log user object
-  console.log('👤 Current user in AppContent:', user);
 
   return (
     <div className="min-h-screen bg-dark-bg text-white">
@@ -150,6 +183,15 @@ const AppContent = () => {
 function App() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [urlParams, setUrlParams] = useState(new URLSearchParams(window.location.search));
+
+  // CRITICAL: Check environment variables immediately
+  const envVarsValid = hasRequiredEnvVars();
+  
+  console.log('🔒 App.js Security Check:', {
+    envVarsValid,
+    currentPath,
+    hasToken: !!urlParams.get('token')
+  });
 
   useEffect(() => {
     // Simple client-side routing
