@@ -20,6 +20,12 @@ const AuthenticationWall = ({ children }) => {
     hasValidUser: !!(user && user.uid && user.email)
   });
 
+  // EMERGENCY: ALWAYS SHOW LOGIN - NO EXCEPTIONS
+  console.log('🚨 EMERGENCY MODE: ALWAYS SHOWING LOGIN');
+  return <Login />;
+  
+  // Original logic (disabled for emergency)
+  /*
   // ALWAYS show login while loading
   if (loading) {
     console.log('🚨 LOADING - SHOWING LOGIN TO PREVENT BYPASS');
@@ -34,6 +40,7 @@ const AuthenticationWall = ({ children }) => {
 
   console.log('✅ AUTHENTICATED USER CONFIRMED - ALLOWING ACCESS');
   return children;
+  */
 };
 
 // CRITICAL: Add immediate check for environment variables

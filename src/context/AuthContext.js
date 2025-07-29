@@ -21,9 +21,18 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null); // FORCE NULL
+  const [loading, setLoading] = useState(false); // FORCE NOT LOADING
   const [error, setError] = useState('');
+
+  console.log('🚨 AUTHPROVIDER INITIALIZED:', { user, loading });
+
+  // EMERGENCY: Force user to null ALWAYS until proper login
+  useEffect(() => {
+    console.log('🚨 EMERGENCY: FORCING USER TO NULL');
+    setUser(null);
+    setLoading(false);
+  }, []);
 
   // Store additional user data in localStorage (role, etc.)
   const getUserData = (firebaseUser) => {
