@@ -211,24 +211,32 @@ export const AuthProvider = ({ children }) => {
   // Initialize admin user on first load
   useEffect(() => {
     const initializeAdmin = async () => {
+      console.log('🔄 Admin initialization starting...');
       try {
         // Check if admin already exists
         const storedUsers = JSON.parse(localStorage.getItem('invoiceApp_userData') || '{}');
         const adminExists = Object.values(storedUsers).some(user => user.role === 'admin');
         
+        console.log('👑 Admin check:', { storedUsers, adminExists });
+        
         if (!adminExists) {
+          console.log('🆕 Creating admin account...');
           // Create admin account
           try {
-            await createUserWithEmailAndPassword(auth, 'admin@invoice-app.com', 'admin123');
+            const userCredential = await createUserWithEmailAndPassword(auth, 'admin@invoice-app.com', 'admin123');
+            console.log('✅ Admin created:', userCredential.user.uid);
           } catch (error) {
             // Admin might already exist in Firebase, just not in our local storage
+            console.log('⚠️ Admin creation error (might already exist):', error.code);
             if (error.code !== 'auth/email-already-in-use') {
-              console.error('Failed to create admin:', error);
+              console.error('❌ Failed to create admin:', error);
             }
           }
+        } else {
+          console.log('✅ Admin already exists in localStorage');
         }
       } catch (error) {
-        console.error('Admin initialization error:', error);
+        console.error('❌ Admin initialization error:', error);
       }
     };
 
