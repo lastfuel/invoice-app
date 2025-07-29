@@ -18,10 +18,15 @@ const AppContent = () => {
   const { user, logout } = useAuth();
 
   const handleLogout = () => {
+    console.log('🚪 Logout button clicked');
     if (window.confirm('Are you sure you want to logout?')) {
+      console.log('🚪 Logout confirmed, calling logout()');
       logout();
     }
   };
+
+  // Debug: Log user object
+  console.log('👤 Current user in AppContent:', user);
 
   return (
     <div className="min-h-screen bg-dark-bg text-white">
@@ -70,18 +75,19 @@ const AppContent = () => {
             {/* User info and logout */}
             <div className="flex items-center space-x-3">
               <div className="text-right">
-                <div className="text-sm text-white">{user?.name}</div>
-                <div className="text-xs text-muted-foreground capitalize">{user?.role}</div>
+                <div className="text-sm text-white">{user?.name || 'User'}</div>
+                <div className="text-xs text-muted-foreground capitalize">{user?.role || 'user'}</div>
               </div>
               <div className="bg-green-bright p-2 rounded-full">
                 <User className="w-4 h-4 text-dark-bg" />
               </div>
               <button
                 onClick={handleLogout}
-                className="text-muted-foreground hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-red-500/10"
+                className="flex items-center space-x-1 text-muted-foreground hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-red-500/10 border border-red-400/20"
                 title="Logout"
               >
                 <LogOut className="w-4 h-4" />
+                <span className="text-xs">Logout</span>
               </button>
             </div>
           </div>
