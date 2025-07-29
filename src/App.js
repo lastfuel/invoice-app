@@ -1,13 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import FileUpload from './components/FileUpload';
 import CustomerFilter from './components/CustomerFilter';
 import InvoiceGenerator from './components/InvoiceGenerator';
-import { Package, Bell, User } from 'lucide-react';
+import ProtectedRoute from './components/ProtectedRoute';
+import UserManagement from './components/UserManagement';
+import PasswordSetup from './components/PasswordSetup';
+import PasswordChange from './components/PasswordChange';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { Package, Bell, User, LogOut, Users } from 'lucide-react';
 
-function App() {
+// Separate component for the main app content to use auth hooks
+const AppContent = () => {
   const [uploadedData, setUploadedData] = useState(null);
   const [selectedCustomer, setSelectedCustomer] = useState('');
   const [filteredData, setFilteredData] = useState([]);
+  const [activeTab, setActiveTab] = useState('invoice');
+  const { user, logout } = useAuth();
+
+  const handleLogout = () => {
+    if (window.confirm('Are you sure you want to logout?')) {
+      logout();
+    }
+  };
 
   return (
     <div className="min-h-screen bg-dark-bg text-white">
@@ -21,9 +35,54 @@ function App() {
             <h1 className="text-xl font-semibold gradient-text">ShippingSorted Invoice</h1>
           </div>
           <div className="flex items-center space-x-4">
+            {/* Password Change */}
+            <PasswordChange />
+            
+            {/* Navigation */}
+            <nav className="flex items-center space-x-2">
+              <button
+                onClick={() => setActiveTab('invoice')}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'invoice'
+                    ? 'bg-green-bright/20 text-green-bright'
+                    : 'text-muted-foreground hover:text-green-bright'
+                }`}
+              >
+                Invoice
+              </button>
+              {user?.role === 'admin' && (
+                <button
+                  onClick={() => setActiveTab('users')}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1 ${
+                    activeTab === 'users'
+                      ? 'bg-green-bright/20 text-green-bright'
+                      : 'text-muted-foreground hover:text-green-bright'
+                  }`}
+                >
+                  <Users className="w-4 h-4" />
+                  <span>Users</span>
+                </button>
+              )}
+            </nav>
+
             <Bell className="w-5 h-5 text-muted-foreground hover:text-green-bright cursor-pointer transition-colors" />
-            <div className="bg-green-bright p-2 rounded-full">
-              <User className="w-4 h-4 text-dark-bg" />
+            
+            {/* User info and logout */}
+            <div className="flex items-center space-x-3">
+              <div className="text-right">
+                <div className="text-sm text-white">{user?.name}</div>
+                <div className="text-xs text-muted-foreground capitalize">{user?.role}</div>
+              </div>
+              <div className="bg-green-bright p-2 rounded-full">
+                <User className="w-4 h-4 text-dark-bg" />
+              </div>
+              <button
+                onClick={handleLogout}
+                className="text-muted-foreground hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-red-500/10"
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>
@@ -32,37 +91,94 @@ function App() {
       {/* Main Content Area */}
       <main className="p-8">
         <div className="max-w-6xl mx-auto animate-fade-in-up">
-          <h2 className="text-2xl font-bold mb-8 gradient-text">Invoice Generator</h2>
-          
-          {/* File Upload Section */}
-          <div className="mb-8">
-            <FileUpload onDataUploaded={setUploadedData} />
-          </div>
-
-          {/* Customer Filter Section */}
-          {uploadedData && (
-            <div className="mb-8">
-              <CustomerFilter 
-                data={uploadedData}
-                selectedCustomer={selectedCustomer}
-                onCustomerSelect={setSelectedCustomer}
-                onFilteredData={setFilteredData}
-              />
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-2xl font-bold gradient-text">
+              {activeTab === 'invoice' ? 'Invoice Generator' : 'User Management'}
+            </h2>
+            <div className="text-sm text-muted-foreground">
+              Welcome back, {user?.name}! Last login: {new Date(user?.loginTime).toLocaleString()}
             </div>
-          )}
+          </div>
+          
+          {activeTab === 'invoice' ? (
+            <>
+              {/* File Upload Section */}
+              <div className="mb-8">
+                <FileUpload onDataUploaded={setUploadedData} />
+              </div>
 
-          {/* Invoice Generator Section */}
-          {filteredData.length > 0 && (
+              {/* Customer Filter Section */}
+              {uploadedData && (
+                <div className="mb-8">
+                  <CustomerFilter 
+                    data={uploadedData}
+                    selectedCustomer={selectedCustomer}
+                    onCustomerSelect={setSelectedCustomer}
+                    onFilteredData={setFilteredData}
+                  />
+                </div>
+              )}
+
+              {/* Invoice Generator Section */}
+              {filteredData.length > 0 && (
+                <div className="mb-8">
+                  <InvoiceGenerator 
+                    customerName={selectedCustomer}
+                    transactions={filteredData}
+                  />
+                </div>
+              )}
+            </>
+          ) : (
+            /* User Management Section */
             <div className="mb-8">
-              <InvoiceGenerator 
-                customerName={selectedCustomer}
-                transactions={filteredData}
-              />
+              <UserManagement />
             </div>
           )}
         </div>
       </main>
     </div>
+  );
+};
+
+function App() {
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
+  const [urlParams, setUrlParams] = useState(new URLSearchParams(window.location.search));
+
+  useEffect(() => {
+    // Simple client-side routing
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname);
+      setUrlParams(new URLSearchParams(window.location.search));
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Handle password setup route
+  if (currentPath === '/setup') {
+    const token = urlParams.get('token');
+    return (
+      <AuthProvider>
+        <PasswordSetup 
+          token={token} 
+          onSetupComplete={() => {
+            window.history.pushState({}, '', '/');
+            setCurrentPath('/');
+            setUrlParams(new URLSearchParams());
+          }}
+        />
+      </AuthProvider>
+    );
+  }
+
+  return (
+    <AuthProvider>
+      <ProtectedRoute>
+        <AppContent />
+      </ProtectedRoute>
+    </AuthProvider>
   );
 }
 
