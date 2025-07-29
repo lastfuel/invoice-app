@@ -7,7 +7,7 @@ const ProtectedRoute = ({ children }) => {
 
   console.log('🛡️ ProtectedRoute check:', { user, loading, hasUser: !!user });
 
-  // Show loading spinner while checking authentication
+  // CRITICAL: Always show loading first to prevent flash of unprotected content
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
@@ -19,14 +19,15 @@ const ProtectedRoute = ({ children }) => {
     );
   }
 
-  // If not authenticated (no user), show login page
-  if (!user) {
-    console.log('❌ No user found - showing login');
+  // CRITICAL: If no user OR user is invalid, ALWAYS show login
+  // Never allow bypass - security first!
+  if (!user || !user.uid || !user.email) {
+    console.log('❌ No valid user found - showing login (Security: No bypass allowed)');
     return <Login />;
   }
 
   console.log('✅ User authenticated - showing app');
-  // If authenticated, show the protected content
+  // If authenticated with valid user, show the protected content
   return children;
 };
 

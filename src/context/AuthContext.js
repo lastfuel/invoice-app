@@ -56,6 +56,22 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    console.log('🔄 Setting up Firebase auth listener...');
+    
+    // Failsafe: If Firebase config is missing, keep user as null (require login)
+    const firebaseConfig = {
+      apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+      authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+      projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+    };
+    
+    if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId) {
+      console.error('❌ Firebase config missing! Forcing login requirement.');
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       console.log('🔥 Firebase Auth State Changed:', {
         user: firebaseUser,
@@ -72,6 +88,11 @@ export const AuthProvider = ({ children }) => {
         console.log('❌ No user - should show login');
         setUser(null);
       }
+      setLoading(false);
+    }, (error) => {
+      console.error('❌ Firebase auth error:', error);
+      // On any Firebase error, force login
+      setUser(null);
       setLoading(false);
     });
 

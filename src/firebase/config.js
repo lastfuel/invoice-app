@@ -22,6 +22,16 @@ console.log('🔧 Firebase Config Check:', {
   projectId: firebaseConfig.projectId
 });
 
+// CRITICAL: Validate required config before initializing
+const requiredFields = ['apiKey', 'authDomain', 'projectId'];
+const missingFields = requiredFields.filter(field => !firebaseConfig[field]);
+
+if (missingFields.length > 0) {
+  console.error('❌ CRITICAL: Missing Firebase config fields:', missingFields);
+  console.error('❌ Authentication will NOT work. Check environment variables in production.');
+  // Still initialize to prevent crashes, but auth will fail gracefully
+}
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
